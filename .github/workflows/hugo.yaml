@@ -1,0 +1,55 @@
+name: Deploy Hugo Site to Pages
+
+on:
+  push:
+    branches:
+      - main  # Asegúrate de que tu rama se llama 'main'. Si es 'master', cambia esto.
+  workflow_dispatch:
+
+# Permisos necesarios para que GitHub Actions pueda escribir en Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Solo permitimos un despliegue a la vez para no romper nada
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # Trabajo de compilación
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive  # <--- CRÍTICO: Esto descarga el tema PaperMod
+          fetch-depth: 0
+
+      - name: Instalar Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.146.0' # <--- AQUÍ ESTÁ EL ARREGLO
+          extended: true
+
+      - name: Compilar sitio
+        run: hugo --minify
+
+      - name: Subir artefacto
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public
+
+  # Trabajo de despliegue
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Desplegar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
